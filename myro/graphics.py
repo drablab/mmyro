@@ -1,50 +1,46 @@
+from __future__ import print_function
 import time, os, sys
-import globvars
+from myro import globvars
 try: 	 
-     import PIL.Image as PyImage	     
+    import PIL.Image as PyImage	     
 except: 	 
-     print >> sys.stderr, "WARNING: Image not found; do you need Python Imaging Library?" 	 
+     print("WARNING: Image not found; do you need Python Imaging Library?", file=sys.stderr)
 
 import array
 import math
-import exceptions
 
 import myro.globvars
 from copy import copy
-from Queue import Queue
-import thread
 import atexit
 
 class Picture(object):
     def __init__(self, original=None):
         if original is not None:
-             self.width = original.width
-             self.height = original.height
-             self.image = original.image.copy()
-             self.filename = original.filename
-             self.mode = original.mode
-             self.displayScale = original.displayScale
+            self.width = original.width
+            self.height = original.height
+            self.image = original.image.copy()
+            self.filename = original.filename
+            self.mode = original.mode
+            self.displayScale = original.displayScale
         else:
-             self.width = 0
-             self.height = 0
-             self.image = None
-             self.filename = None
-             self.mode = None
-             self.displayScale = 1
+            self.width = 0
+            self.height = 0
+            self.image = None
+            self.filename = None
+            self.mode = None
+            self.displayScale = 1
              
-
     def set(self, width, height, data=None, mode="color", value=255):
         self.width = width
         self.height = height
         self.mode = mode
         if mode.lower() == "color":
             if data == None:
-                 if type(value) == int:
-                      data = array.array('B', [value] * (height * width * 3))
-                 elif len(value) == 3:
-                      data = array.array('B', value * (height * width))
-            self.image = PyImage.frombuffer("RGB", (self.width, self.height),
-                                            data, "raw", "RGB", 0, 1)
+                if type(value) == int:
+                    data = array.array('B', [value] * (height * width * 3))
+                elif len(value) == 3:
+                    data = array.array('B', value * (height * width))
+                    self.image = PyImage.frombuffer("RGB", (self.width, self.height), data, "raw", "RGB", 0, 1)
         elif mode.lower() == "image": 	 
              self.image = data.copy()
         elif mode.lower() == "jpeg": 	 
@@ -59,7 +55,7 @@ class Picture(object):
         self.palette = self.image.getpalette()
         self.filename = 'Camera Image'
         if self.pixels == None:
-            raise AttributeError, "Myro needs at least Python Imaging Library version 1.1.6"
+            raise AttributeError("Myro needs at least Python Imaging Library version 1.1.6")
         #self.image = ImageTk.PhotoImage(self.temp, master=_root)
         maxsize = max(self.width, self.height) 
         smallWindowThreshold = 250
@@ -67,25 +63,25 @@ class Picture(object):
              self.displayScale = smallWindowThreshold/maxsize
 
     def rotate(self, degreesCCwise):
-         self.image = self.image.rotate(degreesCCwise)
-         self.pixels = self.image.load()
-         self.width = self.image.size[0]
-         self.height = self.image.size[1]
-
+        self.image = self.image.rotate(degreesCCwise)
+        self.pixels = self.image.load()
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
+        
     def resize(self, x, y):
-         self.image = self.image.resize((int(x), int(y)))
-         self.pixels = self.image.load()
-         self.width = self.image.size[0]
-         self.height = self.image.size[1]         
-
+        self.image = self.image.resize((int(x), int(y)))
+        self.pixels = self.image.load()
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]         
+        
     def scale(self, xfactor=None, yfactor=None):
-         if xfactor is None:
-              xfactor = 1
-         if yfactor is None:
-              yfactor = xfactor
-         newWidth = int(self.width * xfactor)
-         newHeight = int(self.height * yfactor)
-         self.resize(newWidth, newHeight)
+        if xfactor is None:
+            xfactor = 1
+        if yfactor is None:
+            yfactor = xfactor
+        newWidth = int(self.width * xfactor)
+        newHeight = int(self.height * yfactor)
+        self.resize(newWidth, newHeight)
 
     def load(self, filename):
         #self.image = tk.PhotoImage(file=filename, master=_root)
@@ -98,12 +94,12 @@ class Picture(object):
         self.palette = self.image.getpalette()
         self.filename = filename
         if self.pixels == None:
-            raise AttributeError, "Myro needs at least Python Imaging Library version 1.1.6"
+            raise AttributeError("Myro needs at least Python Imaging Library version 1.1.6")
     def __repr__(self):
         return "<Picture instance (%d x %d)>" % (self.width, self.height)
     def getPixels(self):
-         return (Pixel(x, y, self) for x in range(self.width)
-                 for y in range(self.height))
+        return (Pixel(x, y, self) for x in range(self.width)
+                for y in range(self.height))
     def getPixel(self, x, y):
         return Pixel( x, y, self)
     def getColor(self, x, y):
@@ -120,9 +116,9 @@ class Picture(object):
     def getAlpha(self, x, y):
         return self.pixels[x, y][3]
     def getWidth(self):
-         return self.width
+        return self.width
     def getHeight(self):
-         return self.height
+        return self.height
 
 class Pixel(object):
     def __init__(self, x, y, picture):
@@ -205,19 +201,20 @@ class Color(object):
         """
         self.alpha = 255
         if len(rgb) == 1:
-	   #Accept a string in the hext fromat made by color_rgb func.
-	    if isinstance(rgb[0],str):
-               self.rgb = rgb_color(rgb[0])
-	    else:
-               self.rgb=rgb[0]
+            #Accept a string in the hext fromat made by color_rgb func.
+            if isinstance(rgb[0],str):
+                self.rgb = rgb_color(rgb[0])
+            else:
+                self.rgb=rgb[0]
         elif len(rgb) == 3:
             self.rgb = rgb
         elif len(rgb) == 4:
             self.rgb = rgb[:-1]
             self.alpha = rgb[-1]
         else:
-            raise AttributeError, "invalid arguments to Color(); needs at least 3 integers: red, green, blue (transparency optional)"
+            raise AttributeError("invalid arguments to Color(); needs at least 3 integers: red, green, blue (transparency optional)")
         self.rgb = map(lambda v: int(max(min(v,255),0)), self.rgb)
+
     def __repr__(self):
         return "<Color instance (r=%d, g=%d, b=%d, a=%d)>" % (self.rgb[0],
                                                                self.rgb[1],
@@ -226,9 +223,9 @@ class Color(object):
     def getColor(self):
         return Color(self.rgb)
     def getAlpha(self):
-         return self.alpha
+        return self.alpha
     def setAlpha(self, value):
-         self.alpha = value
+        self.alpha = value
     def setColor(self, color):
         self.rgb = color.getRGB()
     def setRGB(self, rgb):
@@ -284,7 +281,7 @@ def rgb_color( color ):
    if color[0] == '#':
       color=color[1:]
    if len(color) != 6:
-      raise ValueError, "#%s incorrect format use #rrggbb" % color
+      raise ValueError("#%s incorrect format use #rrggbb" % color)
    r, g, b = color[:2], color[2:4], color[4:]
    r, g, b = [int(n, 16) for n in (r, g, b)]
    return (r, g, b)

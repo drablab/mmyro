@@ -1,13 +1,13 @@
 from myro import *
 
 init('/dev/ttyUSB0')
-print getName()
+print (getName())
 beep(.5, 440)
-print getEncoders(True)
+print (getEncoders(True))
 turnRight(1, .5)
-print getEncoders(True)
+print (getEncoders(True))
 turnLeft(1, .5)
-print getEncoders(True)
-print getMicEnvelope()
-print getAll()
+print (getEncoders(True))
+print (getMicEnvelope())
+print (getAll())
 

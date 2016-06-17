@@ -56,7 +56,7 @@ robot.playSong(s): plays a song on the robot
 __VERSION__ = "$Revision: 402 $ "
 __AUTHOR__  = "Doug Blank <dblank@cs.brynmawr.edu>"
 
-import globvars
+from myro import globvars
 
 _frequency = {
               "rest":     0,
@@ -212,7 +212,7 @@ def _getFrequency(s, line, text):
         if s.lower() in _frequency:
             return _frequency[s.lower()]
         else:
-            raise ValueError, "invalid note name/frequency '%s' on line %d: %s" % (s, line, text)
+            raise ValueError("invalid note name/frequency '%s' on line %d: %s" % (s, line, text))
     else:
         return int(float(s))
 
@@ -234,7 +234,7 @@ def _getDuration(v, line, text):
         try:
             return eval(v + ".")
         except:
-            raise ValueError, ("invalid duration value '%s' on line %d: %s" %
+            raise ValueError("invalid duration value '%s' on line %d: %s" %
                                (v, line, text))
     return float(v)
 
@@ -320,7 +320,7 @@ def _parseSongLine(song, line, lineNumber, filename):
                       _getFrequency(name2, lineNumber, line),
                       _getDuration(dur, lineNumber, line)) )
     else:
-        raise ValueError, ("song format error in '%s' at line %d: %s" %
+        raise ValueError("song format error in '%s' at line %d: %s" %
                            (filename, lineNumber, line))
 
 class Song:

@@ -8,10 +8,7 @@ setup     = 0
 mediaFolder = ""
 askData   = {}
 sound     = 0
-if type(sys.stdout) == file:
-    runtkthread = 0
-else:
-    runtkthread = 1
+runtkthread = 0
 formats = ('itemName', 'ItemName', 'itemName') # function, class, variables
 pictures = {}
 pixmaps = {}
