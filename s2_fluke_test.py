@@ -1,3 +1,4 @@
+from __future__ import print_function
 from myro import *
 
 init('/dev/rfcomm0')
