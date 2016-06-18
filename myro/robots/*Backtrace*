@@ -1,5 +1,0 @@
-Debugger entered--Lisp error: (void-variable def)
-  eval(def nil)
-  eval-last-sexp-1(nil)
-  eval-last-sexp(nil)
-  call-interactively(eval-last-sexp nil nil)
