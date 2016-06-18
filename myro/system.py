@@ -10,6 +10,25 @@ import myro.globvars
 # copied below from scribbler.py:
 #from myro.robots.scribbler import set_scribbler_start_program, set_scribbler_memory
 
+
+def mybytes(s):
+    if (type(s) == type(1)):
+        return bytearray([s])
+    else:
+        s = map(int, s)
+        return bytearray(s)
+
+def serread(ser, n):
+    v = ser.read(n)
+    v = bytearray(v)
+    if n == 1 and len(v) > 0: 
+        return v[0]
+    return v
+
+
+def serreadline(ser):
+    return ser.readline().decode()
+
 class RegFile:
     """ Class for treating a regular file like other archives. """
     def __init__(self, filename, mode="rb"):
@@ -292,13 +311,13 @@ def upgrade_scribbler(url=None, scrib_version=1):
 
 def manual_flush(ser):
     old = ser.timeout
-    ser.setTimeout(1)
+    ser.timeout = 1
     l = 'a'
     count = 0;
     while (len(l) != 0 and count < 50000):
-        l = ser.read(1)
+        l = serread(1)
         count += len(l)
-    ser.setTimeout(old)
+    ser.timeout = old
 
     
 def get_info_timeout(s):
@@ -306,10 +325,10 @@ def get_info_timeout(s):
     oldtimeout = s.timeout
     s.setTimeout(4)
     manual_flush(s)
-    s.write(chr(GET_INFO) + (' ' * 8))
+    s.write(mybytes(GET_INFO) + (' ' * 8))
     retval = s.readline()
     #print "Got", retval   
-    s.write(chr(GET_INFO) + (' ' * 8))
+    s.write(mybytes(GET_INFO) + (' ' * 8))
     retval = s.readline()
     # remove echoes
     #print "Got", retval
@@ -420,53 +439,52 @@ GET_ROBOT_ID = 156      # find out which type of robot - scribbler 1 or 2
 UPDATE_FIRMWARE = 40    # Updates the firmware of the robot 
 
 def get_robot_type(ser):
-    ser.write(chr(GET_ROBOT_ID))
+    ser.write(mybytes(GET_ROBOT_ID))
     return ser.readline()
 
 def set_scribbler_memory(ser, offset, byte):
-    ser.write(chr(SET_SCRIB_PROGRAM))
+    ser.write(mybytes(SET_SCRIB_PROGRAM))
     write_2byte(ser, offset)
-    ser.write(chr(byte))
+    ser.write(mybytes(byte))
 
 def set_scribbler2_memory(ser, offset, byte):
-    ser.write(chr(SET_SCRIB_PROGRAM))
+    ser.write(mybytes(SET_SCRIB_PROGRAM))
     write_2byte(ser, offset)
     ser.write(byte)
 
 def set_scribbler2_memory_batch(ser, bytes):
-    ser.write(chr(SET_SCRIB_BATCH))
+    ser.write(mybytes(SET_SCRIB_BATCH))
     write_2byte(ser, len(bytes))
     for byte in bytes:
         ser.write(byte)
 
 def get_scribbler_memory(ser, offset):
-    ser.write(chr(GET_SCRIB_PROGRAM))
+    ser.write(mybytes(GET_SCRIB_PROGRAM))
     write_2byte(ser, offset)
-    v = ord(ser.read(1))
+    v = ser.read(1)
     return v
     
 def set_scribbler_start_program(ser, size):
-    ser.write(chr(SET_START_PROGRAM))
+    ser.write(mybytes(SET_START_PROGRAM))
     # magic code to ensure we don't enter scribbler program by accident
-    ser.write(chr(0x01))
-    ser.write(chr(0x23))
+    ser.write(mybytes(0x01))
+    ser.write(mybytes(0x23))
     write_2byte(ser, size)
 
 def set_scribbler_start_program_old(ser, size):
-    ser.write(chr(SET_START_PROGRAM))
+    ser.write(mybytes(SET_START_PROGRAM))
     write_2byte(ser, size)
-
     
 def set_scribbler2_start_program(ser, size):
-    ser.write(chr(SET_START_PROGRAM2))
+    ser.write(mybytes(SET_START_PROGRAM2))
     # magic code to ensure we don't enter scribbler program by accident
-    ser.write(chr(0x01))
-    ser.write(chr(0x23))
+    ser.write(mybytes(0x01))
+    ser.write(mybytes(0x23))
     write_2byte(ser, size)
 
 def write_2byte(ser, value):
-    ser.write(chr((value >> 8) & 0xFF))
-    ser.write(chr(value & 0xFF))
+    ser.write(mybytes((value >> 8) & 0xFF))
+    ser.write(mybytes(value & 0xFF))
 
 def uf_sendPage(s,page,binarray):
     segment = 0
@@ -474,9 +492,9 @@ def uf_sendPage(s,page,binarray):
         i = 0
         sum = 0
         for i in range (0,132) :
-            s.write(chr(binarray[page*264 + segment*132 + i]))
+            s.write(mybytes(binarray[page*264 + segment*132 + i]))
             sum = sum + binarray[page*264 + segment*132 + i]
-        s.write(chr(sum % 256))
+        s.write(mybytes(sum % 256))
         retval = ord(s.read(1))
         #print "Sum: %d Return: %d" % (sum % 256,retval)
         if retval == 42 :
@@ -496,9 +514,9 @@ def uf_recvPage(s,page,binarray):
         #print "My sum: %d Recd chksum: %d" % (sum % 256,chksum)
         if chksum == sum % 256 :
             segment = segment + 1
-            s.write(chr(42))
+            s.write(mybytes(42))
         else:
-            s.write(chr(1))
+            s.write(mybytes(1))
 
 def uf_saveEEPROMdump(s,eepromdump):
     for i in range (0,512) :
@@ -641,20 +659,20 @@ def upgrade_fluke(url=None):
         s.flushInput()
         print ("Sending firmware")
 
-        s.write(chr(UPDATE_FIRMWARE))
+        s.write(mybytes(UPDATE_FIRMWARE))
         # magic code to ensure we don't enter program by accident
-        s.write(chr(0x01))
-        s.write(chr(0x23))
+        s.write(mybytes(0x01))
+        s.write(mybytes(0x23))
 
         upfp = open(filename, "rb")
         bytes = upfp.read()
         upfp.close()
         size = len(bytes)
 
-        s.write(chr((size >> 24) & 0xFF))
-        s.write(chr((size >> 16) & 0xFF))
-        s.write(chr((size >> 8) & 0xFF))
-        s.write(chr((size) & 0xFF))
+        s.write(mybytes((size >> 24) & 0xFF))
+        s.write(mybytes((size >> 16) & 0xFF))
+        s.write(mybytes((size >> 8) & 0xFF))
+        s.write(mybytes((size) & 0xFF))
 
 
         while True:
@@ -690,14 +708,14 @@ def upgrade_fluke(url=None):
         s.flushInput()
 
         #print "Getting old EEPROM"
-        #s.write(chr(SAVE_EEPROM))
+        #s.write(mybytes(SAVE_EEPROM))
         #uf_saveEEPROMdump()
         print ("Sending firmware")
-        s.write(chr(UPDATE_FIRMWARE))
+        s.write(mybytes(UPDATE_FIRMWARE))
         if sendMagicKey:
             # magic code to ensure we don't enter program by accident
-            s.write(chr(0x01))
-            s.write(chr(0x23))
+            s.write(mybytes(0x01))
+            s.write(mybytes(0x23))
 
         uf_storeinEEPROM(s, arlen, binarray)
         print ("Waiting for reboot...")
