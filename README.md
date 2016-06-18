@@ -6,9 +6,11 @@
 
 
 
-```pip3 install Pillow
+```
+pip3 install Pillow
 pip3 install pyserial
 
 pip install Pillow
-pip install pyserial```
+pip install pyserial
+```
 
