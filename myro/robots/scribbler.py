@@ -10,7 +10,7 @@ __REVISION__ = "$Revision: 1735 $"
 __AUTHOR__   = "Keith O'Hara and Doug Blank"
 
 import time, string
-import os
+import os, io
 try:
     import serial
 except:
@@ -31,14 +31,14 @@ class BufferedRead:
         self.serial = serial
         self.size = size
         if start:
-            self.data = self.serial.read(size)
+            self.data = bytearray(self.serial.read(size))
         else:
-            self.data = ""
+            self.data = bytearray()
     def __getitem__(self, position):
         """ Return an element of the string """
         while position >= len(self.data):
             #self.data += self.serial.read(self.size - len(self.data))
-            self.data += self.serial.read(self.size - len(self.data))
+            self.data += bytearray(self.serial.read(self.size - len(self.data)))
             #print ("      length so far = ", len(self.data), " waiting for total = ", self.size)
         return self.data[position]
     def __len__(self):
@@ -250,8 +250,8 @@ class Scribbler(Robot):
         self.open()
         
         myro.globvars.robot = self
-        self._fudge = range(4)
-        self._oldFudge = range(4)
+        self._fudge = [0]*4
+        self._oldFudge = [0]*4
         self.dongle = None
         self.dongle_version = 0
         self.imagewidth = 0
@@ -361,7 +361,7 @@ class Scribbler(Robot):
         l = 'a'
         count = 0;
         while (len(l) != 0 and count < 50000):
-            l = self.ser.read(1)
+            l = self.serread(1)
             count += len(l)
         self.ser.timeout = old
 
@@ -403,10 +403,10 @@ class Scribbler(Robot):
         else:
             self._set_speaker_2(int(frequency), int(frequency2), int(duration * 1000))
 
-        v = self.ser.read(Scribbler.PACKET_LENGTH + 11)
+        v = self.serread(Scribbler.PACKET_LENGTH + 11)
 
         if self.debug:
-            print (list(map(lambda x:"0x%x" % ord(x), v)))
+            print (list(map(lambda x:"0x%x" % x, v)))
 
         self.ser.timeout = old
         self.lock.release()
@@ -442,12 +442,12 @@ class Scribbler(Robot):
         elif sensor == "name":
             c = self._get(Scribbler.GET_NAME1, 8)
             c += self._get(Scribbler.GET_NAME2, 8)
-            c = string.join([chr(x) for x in c if "0" <= chr(x) <= "z"], '').strip()
+            c = "".join([chr(x) for x in c if "0" <= chr(x) <= "z"]).strip()
             return c
         elif sensor == "password":
             c = self._get(Scribbler.GET_PASS1, 8)
             c += self._get(Scribbler.GET_PASS2, 8)
-            c = string.join([chr(x) for x in c if "0" <= chr(x) <= "z"], '').strip()
+            c = "".join([chr(x) for x in c if "0" <= chr(x) <= "z"]).strip()
             return c
         elif sensor == "volume":
             return self._volume
@@ -542,7 +542,7 @@ class Scribbler(Robot):
         # work-around for linux bug where write() throws an exception on first connect
         if times > 0:
             try:
-                self.ser.write(data)
+                self.serwrite(data)
             except:
                 time.sleep(0.25)
                 self.tryWrite(data, times -1)
@@ -555,7 +555,7 @@ class Scribbler(Robot):
 
         #self.ser.flushInput()
         #self.ser.flushOutput()
-        info_text = (chr(Scribbler.GET_INFO) + (' ' * 8)).encode("ascii")
+        info_text = (mybytes(Scribbler.GET_INFO) + (b' ' * 8))
         self.manual_flush()
         # have to do this twice since sometime the first echo isn't
         # echoed correctly (spaces) from the scribbler
@@ -563,15 +563,15 @@ class Scribbler(Robot):
         if platform == "linux" or platform == "linux2":        
             self.tryWrite(info_text, 50)
         else:
-            self.ser.write(info_text)
+            self.serwrite(info_text)
             
-        retval = self.ser.readline()
-        # print("Got", retval)
+        retval = self.serreadline()
+        print("Got", retval)
 
         time.sleep(.1)
 
-        self.ser.write(info_text)
-        retval = self.ser.readline().decode('ascii')
+        self.serwrite(info_text)
+        retval = self.serreadline()
         # print("Got", retval)
 
         # remove echoes
@@ -752,31 +752,32 @@ class Scribbler(Robot):
             print ("configuring RLE", delay, smooth_thresh, y_low, y_high, u_low, u_high, v_low, v_high)
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_RLE))
-            self.ser.write(chr(delay))
-            self.ser.write(chr(smooth_thresh))
-            self.ser.write(chr(y_low)) 
-            self.ser.write(chr(y_high))
-            self.ser.write(chr(u_low)) 
-            self.ser.write(chr(u_high))
-            self.ser.write(chr(v_low)) 
-            self.ser.write(chr(v_high))
+            self.serwrite(mybytes(Scribbler.SET_RLE))
+            self.serwrite(mybytes(delay))
+            self.serwrite(mybytes(smooth_thresh))
+            self.serwrite(mybytes(y_low)) 
+            self.serwrite(mybytes(y_high))
+            self.serwrite(mybytes(u_low)) 
+            self.serwrite(mybytes(u_high))
+            self.serwrite(mybytes(v_low)) 
+            self.serwrite(mybytes(v_high))
         finally:
             self.lock.release()
 
     def read_uint32(self):
-        # buf = self.ser.read(4)
-        # return ord(buf[0]) + ord(buf[1]) * 256 + ord(buf[2]) * 65536 + ord(buf[3]) * 16777216
-        return ord(self.ser.read(1)) + ord(self.ser.read(1)) * 256 + ord(self.ser.read(1)) * 65536 + ord(self.ser.read(1)) * 16777216
+         buf = self.serread(4)
+         return buf[0] + buf[1] * 256 + buf[2] * 65536 + buf[3] * 16777216
+         #return self.serread(1) + self.serread(1) * 256 + self.serread(1) * 65536 + self.serread(1) * 16777216
 
     def read_jpeg_scan(self):
-        bytes = ''
+        bytes = bytearray()
         last_byte = 0
         while True:
-            byte = self.ser.read(1)
-            bytes += byte
+            byte = self.serread(1)
+            if byte != None:
+                bytes.append(byte)
 
-            if last_byte == chr(0xff) and byte == chr(0xd9):
+            if last_byte == 0xff and byte == 0xd9:
                 # End-of-image marker
                 break
 
@@ -794,26 +795,26 @@ class Scribbler(Robot):
         return bytes
 
     def read_jpeg_header(self):
-        buf = self.ser.read(2)
-        headerlen = ord(buf[0]) + ord(buf[1]) * 256
-        bytes = ''
+        buf = self.serread(2)
+        headerlen = buf[0] + buf[1] * 256
+        bytes = b''
         while (len(bytes) < headerlen):
-            bytes+=self.ser.read(headerlen-len(bytes))
+            bytes+=self.serread(headerlen-len(bytes))
 
         return bytes
         # BUG - ser.read not guaranteed to return len bytes if timeout is set
-        # return self.ser.read(len)
+        # return self.serread(len)
 
     color_header = None
     def grab_jpeg_color(self, reliable):
         try:
             self.lock.acquire()
             if self.color_header == None:
-                self.ser.write(chr(self.GET_JPEG_COLOR_HEADER))
+                self.serwrite(mybytes(self.GET_JPEG_COLOR_HEADER))
                 self.color_header = self.read_jpeg_header()
 
-            self.ser.write(chr(self.GET_JPEG_COLOR_SCAN))
-            self.ser.write(chr(reliable))
+            self.serwrite(mybytes(self.GET_JPEG_COLOR_SCAN))
+            self.serwrite(mybytes(reliable))
             jpeg = self.color_header + self.read_jpeg_scan()
         finally:
             self.lock.release()
@@ -824,11 +825,11 @@ class Scribbler(Robot):
         try:
             self.lock.acquire()
             if self.gray_header == None:
-                self.ser.write(chr(self.GET_JPEG_GRAY_HEADER))
+                self.serwrite(mybytes(self.GET_JPEG_GRAY_HEADER))
                 self.gray_header = self.read_jpeg_header()
 
-            self.ser.write(chr(self.GET_JPEG_GRAY_SCAN))
-            self.ser.write(chr(reliable))
+            self.serwrite(mybytes(self.GET_JPEG_GRAY_SCAN))
+            self.serwrite(mybytes(reliable))
             jpeg = self.gray_header + self.read_jpeg_scan()
         finally:
             self.lock.release()
@@ -862,22 +863,22 @@ class Scribbler(Robot):
             p.set(width, height, a)
         elif mode == "jpeg":
             jpeg = self.grab_jpeg_color(1)
-            stream = StringIO(jpeg)  
+            stream = io.BytesIO(jpeg)
             p.set(width, height, stream, "jpeg")
         elif mode == "jpeg-fast":
             jpeg = self.grab_jpeg_color(0)
-            stream = StringIO(jpeg)  
+            stream = io.BytesIO(jpeg)    
             p.set(width, height, stream, "jpeg")
         elif mode in ["gray", "grey"]:
             jpeg = self.grab_jpeg_gray(1)
-            stream = StringIO(jpeg)  
+            stream = io.BytesIO(jpeg)    
             p.set(width, height, stream, "jpeg")
         elif mode == "grayjpeg":
             jpeg = self.grab_jpeg_gray(1)
-            stream = StringIO(jpeg)  
+            stream = io.BytesIO(jpeg)    
             p.set(width, height, stream, "jpeg")
         elif mode == "grayjpeg-fast":
-            jpeg = self.grab_jpeg_gray(0)
+            jpeg = io.BytesIO(jpeg)
             stream = StringIO(jpeg)  
             p.set(width, height, stream, "jpeg")
         elif mode in ["grayraw", "greyraw"]:
@@ -899,14 +900,14 @@ class Scribbler(Robot):
         line = ''
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_RLE))
-            size=ord(self.ser.read(1))
-            size = (size << 8) | ord(self.ser.read(1))
+            self.serwrite(mybytes(Scribbler.GET_RLE))
+            size=self.serread(1)
+            size = (size << 8) | self.serread(1)
             if self.debug:
                 print ("Grabbing RLE image size =", size)
             line =''
             while (len(line) < size):
-                line+=self.ser.read(size-len(line))
+                line+=self.serread(size-len(line))
         finally:
             self.lock.release()
 
@@ -917,13 +918,13 @@ class Scribbler(Robot):
         for i in range(height):
             for j in range(0, width, 4):
                 if (counter < 1 and px < len(line)):
-                    counter = ord(line[px])        
+                    counter = line[px]
                     px += 1
-                    counter = (counter << 8) | ord(line[px])        
+                    counter = (counter << 8) | line[px]
                     px += 1
                     # Fluke 2 large image requires a 3 byte counter
                     if self.dongle_version >= [3, 0, 0]:
-                        counter = (counter << 8) | ord(line[px])
+                        counter = (counter << 8) | line[px]
                         px += 1
                     if (inside):
                         val = 0
@@ -945,11 +946,11 @@ class Scribbler(Robot):
         #print "grabbing image size = ", size
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_WINDOW))
-            self.ser.write(chr(0))
+            self.serwrite(mybytes(Scribbler.GET_WINDOW))
+            self.serwrite(mybytes(0))
             line = ''
             while (len(line) < size):
-                line += self.ser.read(size-len(line))
+                line += self.serread(size-len(line))
                 #print "length so far = ", len(line), " waiting for total = ", size
         finally:
             self.lock.release()
@@ -965,7 +966,7 @@ class Scribbler(Robot):
             self.lock.acquire()
             oldtimeout = self.ser.timeout
             self.ser.timeout = .01
-            self.ser.write(chr(Scribbler.GET_IMAGE))
+            self.serwrite(mybytes(Scribbler.GET_IMAGE))
             size= width*height
             line = BufferedRead(self.ser, size, start = 0)
             #create the image from the YUV layer
@@ -981,21 +982,21 @@ class Scribbler(Robot):
 
                                         #   0123 0123 0123
                     if ((j % 4) == 0): #3 #2   VYUY VYUY VYUY
-                        V = ord(line[i * width + j])
-                        Y = ord(line[i * width + j + vy])
-                        U = ord(line[i * width + j + vu])
+                        V = line[i * width + j]
+                        Y = line[i * width + j + vy]
+                        U = line[i * width + j + vu]
                     elif ((j % 4) == 1): #0 #3
-                        Y = ord(line[i * width + j])
-                        V = ord(line[i * width + j + y1v])
-                        U = ord(line[i * width + j + y1u])
+                        Y = line[i * width + j]
+                        V = line[i * width + j + y1v]
+                        U = line[i * width + j + y1u]
                     elif ((j % 4) == 2): #1 #0
-                        U = ord(line[i * width + j])
-                        Y = ord(line[i * width + j + uy])
-                        V = ord(line[i * width + j + uv])
+                        U = line[i * width + j]
+                        Y = line[i * width + j + uy]
+                        V = line[i * width + j + uv]
                     elif ((j % 4) == 3): #2 #1
-                        Y = ord(line[i * width + j])
-                        U = ord(line[i * width + j + y2u])
-                        V = ord(line[i * width + j + y2v])
+                        Y = line[i * width + j]
+                        U = line[i * width + j + y2u]
+                        V = line[i * width + j + y2v]
                     U = U - 128
                     V = V - 128
                     Y = Y
@@ -1016,7 +1017,7 @@ class Scribbler(Robot):
             self.lock.acquire()
             oldtimeout = self.ser.timeout
             self.ser.timeout = .01
-            self.ser.write(chr(Scribbler.GET_IMAGE))
+            self.serwrite(mybytes(Scribbler.GET_IMAGE))
             size= width*height
             line = BufferedRead(self.ser, size, start = 0)
             #create the image from the YUV layer
@@ -1035,21 +1036,21 @@ class Scribbler(Robot):
 
                                 #   0123 0123 0123
                     if ((j % 4) == 0): #3 #2   VYUY VYUY VYUY
-                        V = ord(line[i * width + j])
-                        Y = 0.5*ord(line[i * width + j + vy]) + 0.5*ord(line[(i) * width + j + vy2])
-                        U = 0.5*ord(line[i * width + j + vu]) + 0.5*ord(line[(i) * width + j + vu2])
+                        V = line[i * width + j]
+                        Y = 0.5*line[i * width + j + vy] + 0.5*line[(i) * width + j + vy2]
+                        U = 0.5*line[i * width + j + vu] + 0.5*line[(i) * width + j + vu2]
                     elif ((j % 4) == 1): #0 #3
-                        Y = ord(line[i * width + j])
-                        V = 0.5*ord(line[i * width + j + y1v]) + 0.5*ord(line[(i) * width + j + y1v2])
-                        U = 0.5*ord(line[i * width + j + y1u]) + 0.5*ord(line[(i) * width + j + y1u2]) 
+                        Y = line[i * width + j]
+                        V = 0.5*line[i * width + j + y1v] + 0.5*line[(i) * width + j + y1v2]
+                        U = 0.5*line[i * width + j + y1u] + 0.5*line[(i) * width + j + y1u2] 
                     elif ((j % 4) == 2): #1 #0
-                        U = ord(line[i * width + j])
-                        Y = 0.5*ord(line[i * width + j + uy]) + 0.5*ord(line[(i) * width + j + uy2])
-                        V = 0.5*ord(line[i * width + j + uv]) + 0.5*ord(line[(i) * width + j + uv2])
+                        U = line[i * width + j]
+                        Y = 0.5*line[i * width + j + uy] + 0.5*line[(i) * width + j + uy2]
+                        V = 0.5*line[i * width + j + uv] + 0.5*line[(i) * width + j + uv2]
                     elif ((j % 4) == 3): #2 #1
-                        Y = ord(line[i * width + j])
-                        U = 0.5*ord(line[i * width + j + y2u]) + 0.5*ord(line[(i) * width + j + y2u2])
-                        V = 0.5*ord(line[i * width + j + y2v]) + 0.5*ord(line[(i) * width + j + y2v2])
+                        Y = line[i * width + j]
+                        U = 0.5*line[i * width + j + y2u] + 0.5*line[(i) * width + j + y2u2]
+                        V = 0.5*line[i * width + j + y2v] + 0.5*line[(i) * width + j + y2v2]
                     U = U - 128
                     V = V - 128
                     Y = Y
@@ -1069,7 +1070,7 @@ class Scribbler(Robot):
             self.lock.acquire()
             oldtimeout = self.ser.timeout
             self.ser.timeout = .01
-            self.ser.write(chr(Scribbler.GET_IMAGE))
+            self.serwrite(mybytes(Scribbler.GET_IMAGE))
             size= width*height
             line = BufferedRead(self.ser, size, start = 0)
             #create the image from the YUV layer
@@ -1094,21 +1095,21 @@ class Scribbler(Robot):
 
                             #   0123 0123 0123
                     if ((j % 4) == 0): #3 #2   VYUY VYUY VYUY
-                        V = ord(line[i * width + j])
-                        Y = 0.5*ord(line[i * width + j + vy]) + 0.5*ord(line[(i-n) * width + j + vy])
-                        U = 0.5*ord(line[i * width + j + vu]) + 0.5*ord(line[(i-n) * width + j + vu])
+                        V = line[i * width + j]
+                        Y = 0.5*line[i * width + j + vy] + 0.5*line[(i-n) * width + j + vy]
+                        U = 0.5*line[i * width + j + vu] + 0.5*line[(i-n) * width + j + vu]
                     elif ((j % 4) == 1): #0 #3
-                        Y = ord(line[i * width + j])
-                        V = 0.5*ord(line[i * width + j + y1v]) + 0.5*ord(line[(i-n) * width + j + y1v])
-                        U = 0.5*ord(line[i * width + j + y1u]) + 0.5*ord(line[(i-n) * width + j + y1u]) 
+                        Y = line[i * width + j]
+                        V = 0.5*line[i * width + j + y1v] + 0.5*line[(i-n) * width + j + y1v]
+                        U = 0.5*line[i * width + j + y1u] + 0.5*line[(i-n) * width + j + y1u]
                     elif ((j % 4) == 2): #1 #0
-                        U = ord(line[i * width + j])
-                        Y = 0.5*ord(line[i * width + j + uy]) + 0.5*ord(line[(i-n) * width + j + uy])
-                        V = 0.5*ord(line[i * width + j + uv]) + 0.5*ord(line[(i-n) * width + j + uv])
+                        U = line[i * width + j]
+                        Y = 0.5*line[i * width + j + uy] + 0.5*line[(i-n) * width + j + uy]
+                        V = 0.5*line[i * width + j + uv] + 0.5*line[(i-n) * width + j + uv]
                     elif ((j % 4) == 3): #2 #1
-                        Y = ord(line[i * width + j])
-                        U = 0.5*ord(line[i * width + j + y2u]) + 0.5*ord(line[(i-n) * width + j + y2u])
-                        V = 0.5*ord(line[i * width + j + y2v]) + 0.5*ord(line[(i-n) * width + j + y2v])
+                        Y = line[i * width + j]
+                        U = 0.5*line[i * width + j + y2u] + 0.5*line[(i-n) * width + j + y2u]
+                        V = 0.5*line[i * width + j + y2v] + 0.5*line[(i-n) * width + j + y2v]
                     U = U - 128
                     V = V - 128
                     Y = Y
@@ -1123,7 +1124,7 @@ class Scribbler(Robot):
     def getBattery(self):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_BATTERY))
+            self.serwrite(mybytes(Scribbler.GET_BATTERY))
             retval = read_2byte(self.ser) / 20.9813
         finally:
             self.lock.release()
@@ -1132,8 +1133,8 @@ class Scribbler(Robot):
     def identifyRobot(self):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_ROBOT_ID))
-            retval = self.ser.readline()
+            self.serwrite(mybytes(Scribbler.GET_ROBOT_ID))
+            retval = self.serreadline()
         finally:
             self.lock.release()
         return retval
@@ -1152,10 +1153,10 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_IR_MESSAGE))
+            self.serwrite(mybytes(Scribbler.GET_IR_MESSAGE))
             size = read_2byte(self.ser)
             while (len(line) < size):
-                line += self.ser.read(size-len(line))                   
+                line += self.serread(size-len(line))                   
         finally:
             self.lock.release()
         return line
@@ -1172,10 +1173,10 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SEND_IR_MESSAGE))            
-            self.ser.write(chr(len(data)))            
+            self.serwrite(mybytes(Scribbler.SEND_IR_MESSAGE))            
+            self.serwrite(mybytes(len(data)))            
             for i in data:
-                self.ser.write(i)
+                self.serwrite(i)
         finally:
             self.lock.release()
         return 
@@ -1211,8 +1212,8 @@ class Scribbler(Robot):
     def setCommunicate(self):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_IR_EMITTERS))            
-            self.ser.write(chr(self.emitters))            
+            self.serwrite(mybytes(Scribbler.SET_IR_EMITTERS))            
+            self.serwrite(mybytes(self.emitters))            
         finally:
             self.lock.release()
         return 
@@ -1220,8 +1221,8 @@ class Scribbler(Robot):
     def setBrightPower(self, power):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_DONGLE_IR))
-            self.ser.write(chr(power))
+            self.serwrite(mybytes(Scribbler.SET_DONGLE_IR))
+            self.serwrite(mybytes(power))
         finally:
             self.lock.release()
 
@@ -1230,9 +1231,9 @@ class Scribbler(Robot):
         try:
             self.lock.acquire()
             if isTrue(value):
-                self.ser.write(chr(Scribbler.SET_DONGLE_LED_ON))
+                self.serwrite(mybytes(Scribbler.SET_DONGLE_LED_ON))
             else:
-                self.ser.write(chr(Scribbler.SET_DONGLE_LED_OFF))
+                self.serwrite(mybytes(Scribbler.SET_DONGLE_LED_OFF))
         finally:
             self.lock.release()
 
@@ -1245,8 +1246,8 @@ class Scribbler(Robot):
             value = int(float(value) * (255 - 170) + 170) # scale
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_DIMMER_LED))
-            self.ser.write(chr(value))
+            self.serwrite(mybytes(Scribbler.SET_DIMMER_LED))
+            self.serwrite(mybytes(value))
         finally:
             self.lock.release()
 
@@ -1256,11 +1257,11 @@ class Scribbler(Robot):
         try:            
             self.lock.acquire()
             if value in ["left", 0]:
-                self.ser.write(chr(Scribbler.GET_DONGLE_L_IR))
+                self.serwrite(mybytes(Scribbler.GET_DONGLE_L_IR))
             elif value in ["middle", "center", 1]:
-                self.ser.write(chr(Scribbler.GET_DONGLE_C_IR))
+                self.serwrite(mybytes(Scribbler.GET_DONGLE_C_IR))
             elif value in ["right", 2]:
-                self.ser.write(chr(Scribbler.GET_DONGLE_R_IR))
+                self.serwrite(mybytes(Scribbler.GET_DONGLE_R_IR))
             retval = read_2byte(self.ser)
         finally:
             self.lock.release()
@@ -1277,7 +1278,7 @@ class Scribbler(Robot):
                 elif value in ["right", 1]:
                     self._write([Scribbler.GET_DISTANCE, 1])
                 self._read(Scribbler.PACKET_LENGTH) # read echo
-                retval = ord(self.ser.read(1))
+                retval = self.serread(1)
             finally:
                 self.lock.release()
             return retval       
@@ -1301,8 +1302,8 @@ class Scribbler(Robot):
                 window = 2
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_WINDOW_LIGHT))
-            self.ser.write(chr(window))
+            self.serwrite(mybytes(Scribbler.GET_WINDOW_LIGHT))
+            self.serwrite(mybytes(window))
             retval = read_3byte(self.ser) #/ (63.0 * 192.0 * 255.0)
         finally:
             self.lock.release()
@@ -1311,11 +1312,11 @@ class Scribbler(Robot):
     def getBlob(self):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_BLOB))
-            #self.ser.write(chr(window))
+            self.serwrite(mybytes(Scribbler.GET_BLOB))
+            #self.serwrite(mybytes(window))
             numpixs = read_2byte(self.ser)
-            xloc = ord(self.ser.read(1))
-            yloc = ord(self.ser.read(1))
+            xloc = self.serread(1)
+            yloc = self.serread(1)
 
             # fluke2 image coordinates don't fit in 1 byte without shifting
             if self.dongle_version >= [3, 0, 0]:
@@ -1335,16 +1336,16 @@ class Scribbler(Robot):
             raise AttributeError("unknown direction: '%s': should be 'fluke-forward' or 'scribbler-forward'" % direction)
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_FORWARDNESS))
-            self.ser.write(chr(direction))
+            self.serwrite(mybytes(Scribbler.SET_FORWARDNESS))
+            self.serwrite(mybytes(direction))
         finally:
             self.lock.release()
 
     def setIRPower(self, power):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_DONGLE_IR))
-            self.ser.write(chr(power))
+            self.serwrite(mybytes(Scribbler.SET_DONGLE_IR))
+            self.serwrite(mybytes(power))
         finally:
             self.lock.release()
 
@@ -1352,25 +1353,25 @@ class Scribbler(Robot):
         try:
             self.lock.acquire()
             if isTrue(value):
-                self.ser.write(chr(Scribbler.SET_WHITE_BALANCE))
+                self.serwrite(mybytes(Scribbler.SET_WHITE_BALANCE))
             else:
-                self.ser.write(chr(Scribbler.SET_NO_WHITE_BALANCE))
+                self.serwrite(mybytes(Scribbler.SET_NO_WHITE_BALANCE))
         finally:
             self.lock.release()
 
     def reboot(self):
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_RESET_SCRIBBLER))
+            self.serwrite(mybytes(Scribbler.SET_RESET_SCRIBBLER))
         finally:
             self.lock.release()
 
     def set_cam_param(self, addr, byte):
         try:
             self.lock.acquire()
-            self.ser.write(chr(self.SET_CAM_PARAM))
-            self.ser.write(chr(addr))
-            self.ser.write(chr(byte))
+            self.serwrite(mybytes(self.SET_CAM_PARAM))
+            self.serwrite(mybytes(addr))
+            self.serwrite(mybytes(byte))
             time.sleep(.15) # camera needs time to reconfigure
         finally:
             self.lock.release()
@@ -1378,9 +1379,9 @@ class Scribbler(Robot):
     def get_cam_param(self, addr):
         try:
             self.lock.acquire()
-            self.ser.write(chr(self.GET_CAM_PARAM))
-            self.ser.write(chr(addr))
-            v = ord(self.ser.read(1)) 
+            self.serwrite(mybytes(self.GET_CAM_PARAM))
+            self.serwrite(mybytes(addr))
+            v = self.serread(1)
         finally:
             self.lock.release()
         return v
@@ -1457,8 +1458,8 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_PIC_SIZE))
-            self.ser.write(chr(sizecode))
+            self.serwrite(mybytes(Scribbler.SET_PIC_SIZE))
+            self.serwrite(mybytes(sizecode))
         finally:
             self.lock.release()
 
@@ -1469,9 +1470,9 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.SET_SERVO))
-            self.ser.write(chr(id))
-            self.ser.write(chr(position))
+            self.serwrite(mybytes(Scribbler.SET_SERVO))
+            self.serwrite(mybytes(id))
+            self.serwrite(mybytes(position))
         finally:
             self.lock.release()
 
@@ -1482,11 +1483,11 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.GET_ERRORS))
+            self.serwrite(mybytes(Scribbler.GET_ERRORS))
             size = read_2byte(self.ser)
             line = ''
             while (len(line) < size):
-                line += self.ser.read(size-len(line))
+                line += self.serread(size-len(line))
         finally:
             self.lock.release()
         print (line)
@@ -1498,7 +1499,7 @@ class Scribbler(Robot):
 
         try:
             self.lock.acquire()
-            self.ser.write(chr(Scribbler.ENABLE_PAN))
+            self.serwrite(mybytes(Scribbler.ENABLE_PAN))
             write_2byte(self.ser, 0x0123)
         finally:
             self.lock.release()
@@ -1901,51 +1902,54 @@ class Scribbler(Robot):
         if self.debug:
             print ("Trying to read", bytes, "bytes", "timeout =", self.ser.timeout)
 
-        c = self.ser.read(bytes)
+        c = self.serread(bytes)
 
         if self.debug:
             print ("Initially read", len(c), "bytes:",end="")
-            print (list(map(lambda x:"0x%x" % ord(x), c)))
+            print (list(map(lambda x:"0x%x" % x, c)))
 
         # .nah. bug fix
         while (bytes > 1 and len(c) < bytes):      
-            c = c + self.ser.read(bytes-len(c))
+            c = c + self.serread(bytes-len(c))
             if self.debug:
-                print (list(map(lambda x:"0x%x" % ord(x), c)))
+                print (list(map(lambda x:"0x%x" % x, c)))
 
         # .nah. end bug fix
         if self.debug:
             print ("_read (%d)" % len(c))
-            print (list(map(lambda x:"0x%x" % ord(x), c)))
+            print (list(map(lambda x:"0x%x" % x, c)))
 
         if self.dongle == None:
             time.sleep(0.01) # HACK! THIS SEEMS TO NEED TO BE HERE!
         if bytes == 1:
             x = -1
             if (c != ""):
-                x = ord(c)            
+                x = c            
             elif self.debug:
                 print ("timeout!")
                 return x
         else:
-            return list(map(ord, c))
+            return c
 
     def serwrite(self, strd):
-        self.ser.write(strd.encode('ascii'))
+        serwrite(self.ser, strd)
 
     def serread(self, n):
-        return self.ser.read(n).decode('ascii')
+        return serread(self.ser, n)
+
+    def serreadline(self):
+        return serreadline(self.ser)
 
     def _write(self, rawdata):
-        t = list(map(lambda x: chr(int(x)), rawdata))
-        data = string.join(t, '') + (chr(0) * (Scribbler.PACKET_LENGTH - len(t)))[:9]
+        t = mybytes(rawdata)
+        data = t + (mybytes(0) * (Scribbler.PACKET_LENGTH - len(t)))[:9]
         if self.debug:
             print ("_write:", data, len(data),end="")
             print ("data:",end="")
-            print (list(map(lambda x:"0x%x" % ord(x), data)))
+            print (list(map(lambda x:"0x%x" % x, data)))
         if self.dongle == None:
             time.sleep(0.01) # HACK! THIS SEEMS TO NEED TO BE HERE!
-        self.ser.write(data)      # write packets
+        self.serwrite(data)      # write packets
 
     def _set(self, *values):
         try:
@@ -1998,10 +2002,10 @@ class Scribbler(Robot):
                 for p in range(0,len(retvalBytes),2):
                     retval.append(retvalBytes[p] << 8 | retvalBytes[p + 1])
             elif mode == "long":
-                retvalBytes = self.ser.read(bytes)
-                retval = list(unpack(">"+"i"*(bytes/4), retvalBytes))
+                retvalBytes = self._read(bytes)
+                retval = list(unpack(">"+"i"*int(bytes/4), retvalBytes))
             elif mode == "line": # until hit \n newline
-                retval = self.ser.readline()
+                retval = self.serreadline()
                 if self.debug:
                     print ("_get(line)", retval)
             #self.ser.flushInput()            
@@ -2037,23 +2041,23 @@ def cap(c):
 def conf_window(self, window, X_LOW, Y_LOW, X_HIGH, Y_HIGH, X_STEP, Y_STEP):
     # fluke2 needs 16-bit numbers to specify image coordinates
     if self.dongle_version >= [3, 0, 0]:
-        self.ser.write(chr(Scribbler.SET_WINDOW))
-        self.ser.write(chr(window))
+        self.serwrite(mybytes(Scribbler.SET_WINDOW))
+        self.serwrite(mybytes(window))
         write_2byte(self.ser, X_LOW)
         write_2byte(self.ser, Y_LOW)
         write_2byte(self.ser, X_HIGH)
         write_2byte(self.ser, Y_HIGH)
-        self.ser.write(chr(X_STEP))
-        self.ser.write(chr(Y_STEP))
+        self.serwrite(mybytes(X_STEP))
+        self.serwrite(mybytes(Y_STEP))
     else:
-        self.ser.write(chr(Scribbler.SET_WINDOW))
-        self.ser.write(chr(window))
-        self.ser.write(chr(X_LOW))
-        self.ser.write(chr(Y_LOW))
-        self.ser.write(chr(X_HIGH))
-        self.ser.write(chr(Y_HIGH))
-        self.ser.write(chr(X_STEP))
-        self.ser.write(chr(Y_STEP))
+        self.serwrite(mybytes(Scribbler.SET_WINDOW))
+        self.serwrite(mybytes(window))
+        self.serwrite(mybytes(X_LOW))
+        self.serwrite(mybytes(Y_LOW))
+        self.serwrite(mybytes(X_HIGH))
+        self.serwrite(mybytes(Y_HIGH))
+        self.serwrite(mybytes(X_STEP))
+        self.serwrite(mybytes(Y_STEP))
 
 def conf_gray_window(self, window, lx, ly, ux, uy, xstep, ystep):
     # Y's are on odd pixels
@@ -2078,14 +2082,14 @@ def grab_rle_on(self):
     blobs = zeros(((height + 1), (width + 1)), dtype=uint8)
     on_pxs = []
     line = ''
-    self.ser.write(chr(Scribbler.GET_RLE))
-    size=ord(self.ser.read(1))
-    size = (size << 8) | ord(self.ser.read(1))
+    self.serwrite(mybytes(Scribbler.GET_RLE))
+    size=self.serread(1)
+    size = (size << 8) | self.serread(1)
     if self.debug:
         print ("Grabbing RLE image size =", size)
     line =''
     while (len(line) < size):
-        line+=self.ser.read(size-len(line))
+        line+=self.serread(size-len(line))
     px = 0
     counter = 0
     val = 128
@@ -2093,9 +2097,9 @@ def grab_rle_on(self):
     for i in range(0, height, 1):
         for j in range(0, width, 4):            
             if (counter < 1 and px < len(line)):
-                counter = ord(line[px])            
+                counter = line[px]
                 px += 1
-                counter = (counter << 8) | ord(line[px])            
+                counter = (counter << 8) | line[px]
                 px += 1
 
                 if (inside):
@@ -2112,63 +2116,76 @@ def grab_rle_on(self):
             counter -= 1
     return on_pxs
 
+def serwrite(ser, strd):
+    ser.write(strd)
+                            
+def serread(ser, n):
+    v = ser.read(n)
+    v = bytearray(v)
+    if n == 1 and len(v) > 0: 
+        return v[0]
+    return v
+
+def serreadline(ser):
+    return ser.readline().decode()
+
 def read_2byte(ser):
-    hbyte = ord(ser.read(1))
-    lbyte = ord(ser.read(1))
+    hbyte = serread(ser, 1)
+    lbyte = serread(ser, 1)
     lbyte = (hbyte << 8) | lbyte
     return lbyte
 
 def read_3byte(ser):
-    hbyte = ord(ser.read(1))
-    mbyte = ord(ser.read(1))
-    lbyte = ord(ser.read(1))
+    hbyte = serread(ser, 1)
+    mbyte = serread(ser, 1)
+    lbyte = serread(ser, 1)
     lbyte = (hbyte << 16)| (mbyte << 8) | lbyte
     return lbyte
-    
+
 def write_2byte(ser, value):
-    ser.write(chr((value >> 8) & 0xFF))
-    ser.write(chr(value & 0xFF))
+    serwrite(ser, mybytes(int(value) >> 8 & 0xFF))
+    serwrite(ser, mybytes(int(value) & 0xFF))
 
 def read_mem(ser, page, offset):
-    ser.write(chr(Scribbler.GET_SERIAL_MEM))
+    serwrite(ser, mybytes(Scribbler.GET_SERIAL_MEM))
     write_2byte(ser, page)
     write_2byte(ser, offset)
-    return ord(ser.read(1))
+    return serread(ser, 1)
 
 def write_mem(ser, page, offset, byte):
-    ser.write(chr(Scribbler.SET_SERIAL_MEM))
+    serwrite(ser, mybytes(Scribbler.SET_SERIAL_MEM))
     write_2byte(ser, page)
     write_2byte(ser, offset)
-    ser.write(chr(byte))
+    serwrite(ser, mybytes(byte))
 
 def erase_mem(ser, page):
-    ser.write(chr(Scribbler.SET_SERIAL_ERASE))
+    serwrite(ser, mybytes(Scribbler.SET_SERIAL_ERASE))
     write_2byte(ser, page)
 
 # Also copied into system.py:
 def set_scribbler_memory(ser, offset, byte):
-    ser.write(chr(Scribbler.SET_SCRIB_PROGRAM))
+    serwrite(ser, mybytes(Scribbler.SET_SCRIB_PROGRAM))
     write_2byte(ser, offset)
-    ser.write(chr(byte))
+    serwrite(ser, mybytes(byte))
 
 def get_scribbler_memory(ser, offset):
-    ser.write(chr(Scribbler.GET_SCRIB_PROGRAM))
+    serwrite(ser, mybytes(Scribbler.GET_SCRIB_PROGRAM))
     write_2byte(ser, offset)
-    v = ord(ser.read(1))
+    v = serread(ser, 1)
     return v
 
 
 def set_scribbler_start_program(ser, size):
-    ser.write(chr(Scribbler.SET_START_PROGRAM))
+    serwrite(ser, mybytes(Scribbler.SET_START_PROGRAM))
     write_2byte(ser, size)
 
 def set_scribbler2_start_program(ser, size):
-    ser.write(chr(Scribbler.SET_START_PROGRAM2))
+    serwrite(ser, mybytes(Scribbler.SET_START_PROGRAM2))
     write_2byte(ser, size)
 
 def get_window_avg(ser, window):
-    ser.write(chr(Scribbler.GET_WINDOW_LIGHT))
-    ser.write(chr(window))
+    serwrite(ser, mybytes(Scribbler.GET_WINDOW_LIGHT))
+    serwrite(ser, mybytes(window))
     return read_2byte(ser)
 
 def quadrupleSize(line, width):
@@ -2187,5 +2204,13 @@ def quadrupleSize(line, width):
     return "".join(retval)
 
 def set_ir_power(ser, power):
-    ser.write(chr(Scribbler.SET_DONGLE_IR))
-    ser.write(chr(power))
+    serwrite(ser, mybytes(Scribbler.SET_DONGLE_IR))
+    serwrite(ser, mybytes(power))
+
+
+def mybytes(s):
+    if (type(s) == type(1)):
+        return bytearray([s])
+    else:
+        s = map(int, s)
+        return bytearray(s)

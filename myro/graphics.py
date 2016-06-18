@@ -40,7 +40,8 @@ class Picture(object):
                     data = array.array('B', [value] * (height * width * 3))
                 elif len(value) == 3:
                     data = array.array('B', value * (height * width))
-                    self.image = PyImage.frombuffer("RGB", (self.width, self.height), data, "raw", "RGB", 0, 1)
+            data = bytes(data)
+            self.image = PyImage.frombuffer("RGB", (self.width, self.height), data, "raw", "RGB", 0, 1)
         elif mode.lower() == "image": 	 
              self.image = data.copy()
         elif mode.lower() == "jpeg": 	 
