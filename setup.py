@@ -17,10 +17,11 @@ setup(
     version= __VERSION__,
     author="Doug Blank, and the IPRE",
     author_email="dblank@cs.brynmawr.edu",
-    url="http://myro.roboteducation.org/",
-    packages=['myro', 'myro.robots', 'myro.worlds', 'myro.globvars'],
+    url="http://myro.roboteducation.org/",    
+    packages=['myro', 'myro.robots', 'myro.globvars'],
     license="Shared Source",
     long_description="Tools for exploring robotics in education",
+    install_requires = ["pyserial", "pillow"],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: End Users/Desktop',

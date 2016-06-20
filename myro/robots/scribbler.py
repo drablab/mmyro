@@ -566,7 +566,7 @@ class Scribbler(Robot):
             self.serwrite(info_text)
             
         retval = self.serreadline()
-        print("Got", retval)
+        #print("Got", retval)
 
         time.sleep(.1)
 
