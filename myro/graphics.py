@@ -96,8 +96,19 @@ class Picture(object):
         self.filename = filename
         if self.pixels == None:
             raise AttributeError("Myro needs at least Python Imaging Library version 1.1.6")
+
     def __repr__(self):
-        return "<Picture instance (%d x %d)>" % (self.width, self.height)
+        return self.image.__repr__()
+
+    def __repr__png__(self):
+        return self.image.__repr__png__()
+
+    def __repr__jpg__(self):
+        return self.image.__repr__jpg__()
+
+    def __repr__html__(self):
+        return self.image.__repr__html__()
+
     def getPixels(self):
         return (Pixel(x, y, self) for x in range(self.width)
                 for y in range(self.height))

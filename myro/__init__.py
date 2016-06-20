@@ -111,6 +111,11 @@ def randomNumber():
 def ask(prompt):
     return input(prompt)
 
+def show(p, title=""):
+    # works nicely with notebooks
+    if p.image:
+        return p.image    
+
 class BackgroundThread(threading.Thread):
     """
     A thread class for running things in the background.
