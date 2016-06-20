@@ -1,7 +1,10 @@
 from __future__ import print_function
 from builtins import input
 import zipfile, tarfile
-from urllib.request import urlopen
+try:
+    from urllib.request import urlopen
+except:
+    from urllib import urlopen
 import os, string, sys, time, tempfile
 try:
     import serial
@@ -159,7 +162,7 @@ def upgrade_myro(url=None, version=None):
         myro_ver = myro_version.split(".")
         # go to site, check for latest greater than our version
         infp = urlopen(url)
-        contents = infp.read()
+        contents = infp.read().decode('utf-8')
         lines = contents.split("\n")
         infp.close()
         for filename in lines:
@@ -170,10 +173,10 @@ def upgrade_myro(url=None, version=None):
                     end = filename.index(".zip")
                     patch_ver = filename[13:end].split(".")
                     if (version != None): # get specific version
-                        if map(int, patch_ver) == map(int, version):
+                        if list(map(int, patch_ver)) == list(map(int, version)):
                             print ("   Downloading...")
                             install_count += import_url(url + filename)
-                    elif map(int, patch_ver) > map(int, myro_ver):
+                    elif list(map(int, patch_ver)) > list(map(int, myro_ver)):
                         # download it
                         print ("   Downloading...")
                         install_count += import_url(url + filename)
@@ -232,9 +235,9 @@ def upgrade_scribbler(url=None, scrib_version=1):
         if robot_version == "Scribbler2":
             scrib_version = 2
     else:
-        robot_type = get_robot_type(s) 
+        robot_type = get_robot_type(s).decode('utf-8')
         print ("using robot: ", robot_type)
-        if robot_type == "SCRIBBLER-2\n":
+        if "SCRIBBLER-2" in robot_type:
             scrib_version = 2
 
             
@@ -277,7 +280,7 @@ def upgrade_scribbler(url=None, scrib_version=1):
             return
         
         print ("Opened url...")
-        contents = infp.read()
+        contents = infp.read().decode('utf8')
         lines = contents.split("\n")
         infp.close()
         consider = {}
@@ -290,15 +293,15 @@ def upgrade_scribbler(url=None, scrib_version=1):
                     end = filename.index(endswidth)
                     patch_ver = filename[startpos:end].split(".")
                     try:
-                        scribbler_ver = map(int, scribbler_ver)
+                        scribbler_ver = list(map(int, scribbler_ver))
                     except:
                         #scribbler_ver has letters in it (and so is really old)
                         scribbler_ver = [0, 0, 0]
-                    if map(int, patch_ver) > scribbler_ver:
+                    if list(map(int, patch_ver)) > scribbler_ver:
                         # consider it:
                         consider[tuple(map(int, patch_ver))] = url + filename
 
-        consider_keys = consider.keys()
+        consider_keys = list(consider)
         consider_keys.sort()
         if len(consider_keys) > 0:
             full_url = consider[consider_keys[-1]]
@@ -317,21 +320,37 @@ def manual_flush(ser):
     l = 'a'
     count = 0;
     while (len(l) != 0 and count < 50000):
-        l = serread(1)
+        l = serread(ser, 1)
         count += len(l)
     ser.timeout = old
 
+def tryWrite(s, data, times):
+    # work-around for linux bug where write() throws an exception on first connect
+    if times > 0:
+        try:
+            s.write(data)
+        except:
+            time.sleep(0.25)
+            tryWrite(s, data, times -1)
     
 def get_info_timeout(s):
     GET_INFO=80  
     oldtimeout = s.timeout
     s.timeout = 4
     manual_flush(s)
-    s.write(mybytes(GET_INFO) + (' ' * 8))
-    retval = s.readline()
+
+    info_text = (mybytes(GET_INFO) + (b' ' * 8))
+
+    from sys import platform                
+    if platform == "linux" or platform == "linux2":        
+        tryWrite(s, info_text, 50)
+    else:
+        serwrite(s, info_text)
+        
+    retval = serreadline(s)
     #print "Got", retval   
-    s.write(mybytes(GET_INFO) + (' ' * 8))
-    retval = s.readline()
+    s.write(mybytes(GET_INFO) + (b' ' * 8))
+    retval = serreadline(s)
     # remove echoes
     #print "Got", retval
     
@@ -371,7 +390,7 @@ def load_scribbler(s, f, force=False, scrib_version = 1):
 
     sendMagicKey = False
 
-    version = map(int, info.split("."))
+    version = list(map(int, info.split(".")))
     print ("Version of fluke", version)
     
     if version > [2, 5, 0] or force:
@@ -458,7 +477,7 @@ def set_scribbler2_memory_batch(ser, bytes):
     ser.write(mybytes(SET_SCRIB_BATCH))
     write_2byte(ser, len(bytes))
     for byte in bytes:
-        ser.write(byte)
+        ser.write(mybytes(byte))
 
 def get_scribbler_memory(ser, offset):
     ser.write(mybytes(GET_SCRIB_PROGRAM))
@@ -591,7 +610,7 @@ def upgrade_fluke(url=None):
         s = myro.globvars.robot.ser
 
     print (info)
-    version = map(int, info.split("."))
+    version = list(map(int, info.split(".")))
     print ("Version of fluke", version)
     
     if version <= [2, 4, 0]:
@@ -623,7 +642,7 @@ def upgrade_fluke(url=None):
         else:
             upgrade_prefix = "/fluke-upgrade-"
 
-        contents = infp.read()
+        contents = infp.read().decode('utf-8')
         lines = contents.split("\n")
         infp.close()
         for file in lines:
@@ -635,7 +654,7 @@ def upgrade_fluke(url=None):
                     #patch_ver = file[15:end].split(".")
                     patch_ver = file[len(upgrade_prefix):end].split(".")
                     print (patch_ver, version)
-                    if map(int, patch_ver) > map(int, version):
+                    if list(map(int, patch_ver)) > list(map(int, version)):
                         # download it
                         print ("   Downloading...")
                         filename = url_retrieve(url + file)
