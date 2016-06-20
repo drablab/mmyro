@@ -1,5 +1,7 @@
 from __future__ import print_function
-import zipfile, tarfile, urllib
+from builtins import input
+import zipfile, tarfile
+from urllib.request import urlopen
 import os, string, sys, time, tempfile
 try:
     import serial
@@ -60,7 +62,7 @@ def url_retrieve(url, tmp_dir = None):
     # get url into tmp_file
     path, file = url.rsplit("/", 1)
     tmp_file = tmp_dir + os.sep + file
-    infp = urllib.urlopen(url)
+    infp = urlopen(url)
     contents = infp.read()
     infp.close()
     outfp = open(tmp_file, "wb")
@@ -156,7 +158,7 @@ def upgrade_myro(url=None, version=None):
         print ("Looking for Myro upgrades at", url, "...")
         myro_ver = myro_version.split(".")
         # go to site, check for latest greater than our version
-        infp = urllib.urlopen(url)
+        infp = urlopen(url)
         contents = infp.read()
         lines = contents.split("\n")
         infp.close()
@@ -186,7 +188,7 @@ class SerialRobot:
         from myro import ask
         self.robotinfo = {}
         if serialport == None:
-            serialport = ask("Port", useCache=0)
+            serialport = ask("Port")
         # Deal with requirement that Windows "COM#" names where # >= 9 needs to
         # be in the format "\\.\COM#"
         if type(serialport) == str and serialport.lower().startswith("com"):
@@ -269,7 +271,7 @@ def upgrade_scribbler(url=None, scrib_version=1):
 
         # go to site, check for latest greater than our version
         try:
-            infp = urllib.urlopen(url)
+            infp = urlopen(url)
         except:
             print ("ERROR: There was an error connecting to the web to download updates. Please check your internet connection. For example, see if you can access", url, "using a web browser.")
             return
@@ -301,7 +303,7 @@ def upgrade_scribbler(url=None, scrib_version=1):
         if len(consider_keys) > 0:
             full_url = consider[consider_keys[-1]]
             print ("Loading", full_url)
-            f = urllib.urlopen(full_url)
+            f = urlopen(full_url)
             install_count += load_scribbler(s, f, True, scrib_version)
     if install_count > 0:
         print ("Done upgrading!")
@@ -323,7 +325,7 @@ def manual_flush(ser):
 def get_info_timeout(s):
     GET_INFO=80  
     oldtimeout = s.timeout
-    s.setTimeout(4)
+    s.timeout = 4
     manual_flush(s)
     s.write(mybytes(GET_INFO) + (' ' * 8))
     retval = s.readline()
@@ -342,7 +344,7 @@ def get_info_timeout(s):
     if retval[0] == 'P' or retval[0] == 'p':
         retval = retval[1:]
 
-    s.setTimeout(oldtimeout)
+    s.timeout = oldtimeout
     
     retDict = {}
     for pair in retval.split(","):
@@ -609,9 +611,9 @@ def upgrade_fluke(url=None):
         print ("Looking for Fluke upgrade at", url, "...")
         myro_ver = myro_version.split(".")
         # go to site, check for latest greater than our version
-        #infp = urllib.urlopen(url)
+        #infp = urlopen(url)
         try:
-            infp = urllib.urlopen(url)
+            infp = urlopen(url)
         except:
             print ("ERROR: There was an error connecting to the web to download updates. Please check your internet connection. For example, see if you can access", url, "using a web browser.")
             return

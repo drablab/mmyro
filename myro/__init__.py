@@ -1,4 +1,6 @@
 from __future__ import print_function
+from builtins import input
+
 """
 Myro Base Classes.
 (c) 2006, Institute for Personal Robots in Education
@@ -107,7 +109,7 @@ def randomNumber():
     return random.random()
 
 def ask(prompt):
-    return raw_input(prompt)
+    return input(prompt)
 
 class BackgroundThread(threading.Thread):
     """
