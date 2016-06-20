@@ -1,6 +1,6 @@
 # Minimal Myro
 
-- supports interaction with scribbler robots (with and without fluke1/fluke2)
+- supports interaction with [scribbler robots](http://www.betterbots.com/) (with and without fluke1/fluke2)
 - only depends on pyserial and PIL for pictures: `takePicture()` & `savePicture()`
 - no GUI 
 
