@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import print_function
 
 # Copyright (c) 2005-2007, Alexander Belchenko
 # All rights reserved.
@@ -547,8 +548,8 @@ def hex2bin(fin, fout, start=None, end=None, size=None, pad=0xFF):
     """
     try:
         h = IntelHex(fin)
-    except HexReaderError, e:
-        print "Error: bad HEX file: %s" % str(e)
+    except HexReaderError as e:
+        print ("Error: bad HEX file: %s" % str(e))
         return 1
 
     # start, end, size
@@ -566,7 +567,7 @@ def hex2bin(fin, fout, start=None, end=None, size=None, pad=0xFF):
     try:
         h.tobinfile(fout, start, end, pad)
     except IOError:
-        print "Could not write to file: %s" % fout
+        print ("Could not write to file: %s" % fout)
         return 1
 
     return 0
@@ -609,7 +610,7 @@ class IntelHexError(Exception):
             return self.message
         try:
             return self._fmt % self.__dict__
-        except (NameError, ValueError, KeyError), e:
+        except (NameError, ValueError, KeyError) as e:
             return 'Unprintable exception %s: %s' \
                 % (self.__class__.__name__, str(e))
 
@@ -707,13 +708,13 @@ Options:
 
         for o, a in opts:
             if o in ("-h", "--help"):
-                print usage
+                print (usage)
                 sys.exit(0)
             elif o in ("-p", "--pad"):
                 try:
                     pad = int(a, 16) & 0x0FF
                 except:
-                    raise getopt.GetoptError, 'Bad pad value'
+                    raise getopt.GetoptError('Bad pad value')
             elif o in ("-r", "--range"):
                 try:
                     l = a.split(":")
@@ -722,25 +723,25 @@ Options:
                     if l[1] != '':
                         end = int(l[1], 16)
                 except:
-                    raise getopt.GetoptError, 'Bad range value(s)'
+                    raise getopt.GetoptError('Bad range value(s)')
             elif o in ("-l", "--lenght", "-s", "--size"):
                 try:
                     size = int(a, 10)
                 except:
-                    raise getopt.GetoptError, 'Bad size value'
+                    raise getopt.GetoptError('Bad size value')
 
         if start != None and end != None and size != None:
-            raise getopt.GetoptError, 'Cannot specify START:END and SIZE simultaneously'
+            raise getopt.GetoptError('Cannot specify START:END and SIZE simultaneously')
 
         if not args:
-            raise getopt.GetoptError, 'Hex file is not specified'
+            raise getopt.GetoptError('Hex file is not specified')
 
         if len(args) > 2:
-            raise getopt.GetoptError, 'Too many arguments'
+            raise getopt.GetoptError('Too many arguments')
 
-    except getopt.GetoptError, msg:
-        print msg
-        print usage
+    except getopt.GetoptError as msg:
+        print (msg)
+        print (usage)
         sys.exit(2)
 
     fin = args[0]
@@ -752,7 +753,7 @@ Options:
         fout = args[1]
 
     if not os.path.isfile(fin):
-        print "File not found"
+        print ("File not found")
         sys.exit(1)
 
     sys.exit(hex2bin(fin, fout, start, end, size, pad))
