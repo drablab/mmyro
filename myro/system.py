@@ -439,7 +439,8 @@ def load_scribbler(s, f, force=False, scrib_version = 1):
 
 def upgrade(what="myro", url = None, version=None):
     if what.lower() == "myro":
-        return upgrade_myro(url, version)
+        print("Not supported currently")
+        #return upgrade_myro(url, version)
     elif what.lower() == "scribbler":
         return upgrade_scribbler(url)
     elif what.lower() == "fluke":
