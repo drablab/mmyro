@@ -1122,6 +1122,9 @@ class Scribbler(Robot):
         return buffer
 
     def getBattery(self):
+        if self.dongle is None:
+            print ("unable to read battery voltage")
+            return 0
         try:
             self.lock.acquire()
             self.serwrite(mybytes(Scribbler.GET_BATTERY))
@@ -1995,7 +1998,7 @@ class Scribbler(Robot):
                 self._write([value])
             self._read(Scribbler.PACKET_LENGTH) # read the echo
             if mode == "byte":
-                retval = self._read(bytes)
+                retval = [x for x in self._read(bytes)]
             elif mode == "word":
                 retvalBytes = self._read(bytes)
                 retval = []
