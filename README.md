@@ -4,7 +4,8 @@
 - only depends on pyserial and PIL for pictures: `takePicture()` & `savePicture()`
 - no GUI 
 - should work with python2 & python3
-
+- preliminary `takePicture()` support for the Raspberry Pi Camera: `init('pi')`
+  
 
 
 ```

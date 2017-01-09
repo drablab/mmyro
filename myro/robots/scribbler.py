@@ -204,8 +204,14 @@ class Scribbler(Robot):
     def __init__(self, serialport = None, baudrate = 38400):
         Robot.__init__(self)
 
-        self.board = 0;
-
+        self.board = 0
+        if serialport.lower() == "pi":
+            self.board = 1
+            if isinstance(baudrate, int):
+                self.serialport = "/dev/rfcomm0"
+            else:
+                self.serialport = baudrate
+            
         #### Camera Addresses ####
         self.CAM_PID=0x0A
         self.CAM_PID_DEFAULT=0x76
