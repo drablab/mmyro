@@ -21,7 +21,7 @@ setup(
     packages=['myro', 'myro.robots', 'myro.globvars'],
     license="Shared Source",
     long_description="Tools for exploring robotics in education",
-    install_requires = ["pyserial", "pillow"],
+    install_requires = ["pyserial", "pillow","picamera"],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: End Users/Desktop',

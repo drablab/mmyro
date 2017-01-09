@@ -12,6 +12,14 @@ __AUTHOR__   = "Keith O'Hara and Doug Blank"
 import time, string
 import os, io
 try:
+    import PIL
+except:
+    print ("WARNING: PIL not loaded: takePicture won't work!")
+try:
+    import picamera
+except:
+    print ("WARNING: picamera not loaded: takePicture won't work!")
+try:
     import serial
 except:
     print ("WARNING: pyserial not loaded: scribbler won't work!")
@@ -196,6 +204,8 @@ class Scribbler(Robot):
     def __init__(self, serialport = None, baudrate = 38400):
         Robot.__init__(self)
 
+        self.board = 0;
+
         #### Camera Addresses ####
         self.CAM_PID=0x0A
         self.CAM_PID_DEFAULT=0x76
@@ -354,6 +364,13 @@ class Scribbler(Robot):
 
     def close(self):
         self.ser.close()
+
+    def setBoard(self, board):
+
+        if(board == 'pi' or board == 'Pi'):
+            self.board = 1
+        if(board == 'fluke2' or board == 'fluke2'):
+            self.board = 0
 
     def manual_flush(self):
         old = self.ser.timeout
@@ -842,55 +859,153 @@ class Scribbler(Robot):
                    "grayjpeg": "rawgray",
                    "grayjpeg-fast": "rawgray"}
     
+    def takePicturePi(self, mode=None):
+
+
+
+        if mode == None:
+            mode = "jpeg"
+        self.imagewidth = 800
+        self.imageheight = 1280
+
+        width = self.imagewidth
+        height = self.imageheight
+        p = Picture()
+
+        print(width)
+        print(height)
+
+        # if self.dongle: what is this?
+        #     version = list(map(int, self.dongle.split(".")))
+        # else:
+        #     version = [1, 0, 0]
+                
+        # if version < [2, 7, 8]:
+        #     if mode in self.image_codes:
+        #         mode = self.image_codes[mode]
+            
+
+        camera = picamera.PiCamera()
+        camera.resolution = (height,width)
+
+
+        if mode in ["jpeg","color"]:
+            stream = io.BytesIO()
+            print ("Taking Picture")
+            camera.start_preview()
+            time.sleep(1)
+            camera.capture(stream, format='jpeg')
+            # "Rewind" the stream to the beginning so we can read its content
+            stream.seek(0)
+            camera.close()
+            p.set(width, height, stream, "jpeg")
+            print ("Done")
+        elif mode in ["gray", "grey","grayjpeg"]:
+            stream = io.BytesIO()
+            camera.color_effects = (128,128)
+            camera.start_preview()
+            time.sleep(1)
+            camera.capture(stream, format='jpeg')
+            # "Rewind" the stream to the beginning so we can read its content
+            stream.seek(0)
+            camera.close()
+            p.set(width, height, stream, "jpeg")
+    
+        elif mode == "blob":
+            a = self._grab_blob_array()
+            p.set(width, height, a, "blob")
+        return p
+
     def takePicture(self, mode=None):
+
         if mode == None:
             mode = "jpeg"
         width = self.imagewidth
         height = self.imageheight
         p = Picture()
 
-        if self.dongle:
-            version = list(map(int, self.dongle.split(".")))
-        else:
-            version = [1, 0, 0]
+        if self.board == 0: # if fluke
+
+            if self.dongle:
+                version = list(map(int, self.dongle.split(".")))
+            else:
+                version = [1, 0, 0]
+                    
+            if version < [2, 7, 8]:
+                if mode in self.image_codes:
+                    mode = self.image_codes[mode]
                 
-        if version < [2, 7, 8]:
-            if mode in self.image_codes:
-                mode = self.image_codes[mode]
-            
-        if mode == "color":
-            a = self._grab_array()
-            p.set(width, height, a)
-        elif mode == "jpeg":
-            jpeg = self.grab_jpeg_color(1)
-            stream = io.BytesIO(jpeg)
-            p.set(width, height, stream, "jpeg")
-        elif mode == "jpeg-fast":
-            jpeg = self.grab_jpeg_color(0)
-            stream = io.BytesIO(jpeg)    
-            p.set(width, height, stream, "jpeg")
-        elif mode in ["gray", "grey"]:
-            jpeg = self.grab_jpeg_gray(1)
-            stream = io.BytesIO(jpeg)    
-            p.set(width, height, stream, "jpeg")
-        elif mode == "grayjpeg":
-            jpeg = self.grab_jpeg_gray(1)
-            stream = io.BytesIO(jpeg)    
-            p.set(width, height, stream, "jpeg")
-        elif mode == "grayjpeg-fast":
-            jpeg = io.BytesIO(jpeg)
-            stream = StringIO(jpeg)  
-            p.set(width, height, stream, "jpeg")
-        elif mode in ["grayraw", "greyraw"]:
-            conf_window(self, 0, 1, 0, self.imagewidth-1, self.imageheight-1, 2, 2)
-            # conf_window(self.ser, 0, 1, 0, 255, 191, 2, 2)
-            a = self._grab_gray_array()
-            conf_gray_window(self, 0, 2, 0, self.imagewidth/2, self.imageheight-1, 1, 1)
-            # conf_gray_window(self.ser, 0, 2, 0,    128, 191, 1, 1)
-            p.set(width, height, a, "gray")
-        elif mode == "blob":
-            a = self._grab_blob_array()
-            p.set(width, height, a, "blob")
+            if mode == "color":
+                a = self._grab_array()
+                p.set(width, height, a)
+            elif mode == "jpeg":
+                jpeg = self.grab_jpeg_color(1)
+                stream = io.BytesIO(jpeg)
+                p.set(width, height, stream, "jpeg")
+            elif mode == "jpeg-fast":
+                jpeg = self.grab_jpeg_color(0)
+                stream = io.BytesIO(jpeg)    
+                p.set(width, height, stream, "jpeg")
+            elif mode in ["gray", "grey"]:
+                jpeg = self.grab_jpeg_gray(1)
+                stream = io.BytesIO(jpeg)    
+                p.set(width, height, stream, "jpeg")
+            elif mode == "grayjpeg":
+                jpeg = self.grab_jpeg_gray(1)
+                stream = io.BytesIO(jpeg)    
+                p.set(width, height, stream, "jpeg")
+            elif mode == "grayjpeg-fast":
+                jpeg = io.BytesIO(jpeg)
+                stream = StringIO(jpeg)  
+                p.set(width, height, stream, "jpeg")
+            elif mode in ["grayraw", "greyraw"]:
+                conf_window(self, 0, 1, 0, self.imagewidth-1, self.imageheight-1, 2, 2)
+                # conf_window(self.ser, 0, 1, 0, 255, 191, 2, 2)
+                a = self._grab_gray_array()
+                conf_gray_window(self, 0, 2, 0, self.imagewidth/2, self.imageheight-1, 1, 1)
+                # conf_gray_window(self.ser, 0, 2, 0,    128, 191, 1, 1)
+                p.set(width, height, a, "gray")
+            elif mode == "blob":
+                a = self._grab_blob_array()
+                p.set(width, height, a, "blob")
+
+        if self.board == 1: # if pi
+
+            self.imagewidth = 800 # HARD CODED, NEEDS TO BE CHANGED
+            self.imageheight = 800
+
+            width = self.imagewidth
+            height = self.imageheight
+
+            camera = picamera.PiCamera()
+            camera.resolution = (height,width)
+
+            if mode in ["jpeg","color"]:
+                stream = io.BytesIO()
+                print ("Taking Picture")
+                camera.start_preview()
+                time.sleep(0.1)
+                camera.capture(stream, format='jpeg')
+                # "Rewind" the stream to the beginning so we can read its content
+                stream.seek(0)
+                camera.close()
+                p.set(width, height, stream, "jpeg")
+                print ("Done")
+            elif mode in ["gray", "grey","grayjpeg"]:
+                stream = io.BytesIO()
+                camera.color_effects = (128,128)
+                camera.start_preview()
+                time.sleep(0.1)
+                camera.capture(stream, format='jpeg')
+                # "Rewind" the stream to the beginning so we can read its content
+                stream.seek(0)
+                camera.close()
+                p.set(width, height, stream, "jpeg")
+        
+            elif mode == "blob":
+                a = self._grab_blob_array()
+                p.set(width, height, a, "blob")
+
         return p
 
     def _grab_blob_array(self):

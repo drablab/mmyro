@@ -9,7 +9,7 @@ Distributed under a Shared Source License
 """
 
 __REVISION__ = "$Revision: 1730 $"
-__VERSION__  = "5.0.1"
+__VERSION__  = "5.0.2.01"
 __AUTHOR__   = "Doug Blank <dblank@cs.brynmawr.edu>"
 
 
@@ -878,6 +878,13 @@ def takePicture(mode=None):
     """ Takes a picture using the camera. Mode can be 'color', 'gray', or 'blob' """
     if myro.globvars.robot:
         return myro.globvars.robot.takePicture(mode)
+    else:
+        raise AttributeError("need to initialize robot")
+
+def setBoard(mode=None):
+    """ sets the board as 'pi' or 'fluke2' """
+    if myro.globvars.robot:
+        return myro.globvars.robot.setBoard(mode)
     else:
         raise AttributeError("need to initialize robot")
 
