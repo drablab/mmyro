@@ -18,7 +18,7 @@ except:
 try:
     import picamera
 except:
-    print ("WARNING: picamera not loaded: takePicture won't work!")
+    print ("WARNING: picamera not loaded: takePicture on Raspberry Pi won't work!")
 try:
     import serial
 except:
@@ -1036,26 +1036,25 @@ class Scribbler(Robot):
         counter = 0
         val = 128
         inside = True
-        for i in range(height):
-            for j in range(0, width, 4):
-                if (counter < 1 and px < len(line)):
-                    counter = line[px]
-                    px += 1
+        for i in range(len(blobs)):
+            if (counter < 1 and px < len(line)):
+                counter = line[px]
+                px += 1
+                counter = (counter << 8) | line[px]
+                px += 1
+                # Fluke 2 large image requires a 3 byte counter
+                if self.dongle_version >= [3, 0, 0]:
                     counter = (counter << 8) | line[px]
                     px += 1
-                    # Fluke 2 large image requires a 3 byte counter
-                    if self.dongle_version >= [3, 0, 0]:
-                        counter = (counter << 8) | line[px]
-                        px += 1
-                    if (inside):
-                        val = 0
-                        inside = False
-                    else:
-                        val = 255
-                        inside = True
-                for z in range(0,4):
-                    blobs[i * width + j+z] = val
-                counter -= 1
+                counter = counter * 4; #each count is 4 pixels
+                if (inside):
+                    val = 0
+                    inside = False
+                else:
+                    val = 255
+                    inside = True                        
+            blobs[i] = val
+            counter -= 1
         return blobs
 
     def _grab_gray_array(self):
