@@ -5,7 +5,7 @@
 - no GUI 
 - should work with python3 & python2 (`pip install future`)
 - preliminary `takePicture()` support for the Raspberry Pi Camera: `init('pi')`
- -- `pip install picamera`
+  - `pip install picamera`
   
 
 
